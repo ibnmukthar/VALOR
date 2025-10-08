@@ -4,9 +4,13 @@ class PID:
         self.umin, self.umax = umin, umax
         self.ei, self.e_prev = 0.0, 0.0
 
+    def reset(self):
+        self.ei = 0.0
+        self.e_prev = 0.0
+
     def step(self, e, dt):
-        self.ei += e*dt
-        ed = (e - self.e_prev)/dt if dt>0 else 0.0
-        u = self.kp*e + self.ki*self.ei + self.kd*ed
+        self.ei += e * dt
+        ed = (e - self.e_prev) / dt if dt > 0 else 0.0
+        u = self.kp * e + self.ki * self.ei + self.kd * ed
         self.e_prev = e
         return max(self.umin, min(self.umax, u))

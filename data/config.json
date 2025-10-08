@@ -1,0 +1,24 @@
+{
+  "airport": {
+    "name": "Example Field",
+    "runway_heading_deg": 90.0,
+    "elevation_ft": 13.0,
+    "threshold_lat_deg": 40.6400,
+    "threshold_lon_deg": -73.7800
+  },
+  "sim": {
+    "dt": 0.01,
+    "t_final": 30.0,
+    "init": {
+      "agl_ft": 200.0,
+      "vtrue_kts": 130.0,
+      "phi_deg": 0.0,
+      "theta_deg": 3.0,
+      "psi_deg": 90.0
+    }
+  },
+  "controllers": {
+    "roll_pid": { "kp": 0.12, "ki": 0.02, "kd": 0.03, "umin": -1.0, "umax": 1.0 },
+    "glide_pid": { "kp": 0.08, "ki": 0.01, "kd": 0.02, "umin": -1.0, "umax": 1.0 }
+  }
+}

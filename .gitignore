@@ -1,0 +1,40 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.pyo
+*.pyd
+*.log
+
+# --- Virtual environment ---
+.venv/
+env/
+venv/
+
+# --- OS/macOS cruft ---
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+
+# --- JSBSim / build artifacts ---
+build/
+*.cmake
+CMakeFiles/
+CMakeCache.txt
+Makefile
+cmake_install.cmake
+
+# --- Results & data ---
+results/logs/
+results/figs/
+*.csv
+*.dat
+*.tmp
+
+# --- IDEs ---
+.vscode/
+.idea/
+*.swp
+*.swo

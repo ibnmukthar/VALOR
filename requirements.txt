@@ -1,0 +1,5 @@
+jsbsim
+numpy
+pandas
+matplotlib
+scipy

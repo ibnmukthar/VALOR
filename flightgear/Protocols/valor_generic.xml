@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<!-- Generic input mapping for VALOR external FDM -->
+<PropertyList>
+  <generic>
+    <version>2.0</version>
+    <input>
+      <line_separator>\n</line_separator>
+      <var_separator>,</var_separator>
+      <!-- Order must match scripts/fg_sender.py fields -->
+      <var><name>lat-deg</name><type>double</type><node>/position/latitude-deg</node></var>
+      <var><name>lon-deg</name><type>double</type><node>/position/longitude-deg</node></var>
+      <var><name>alt-msl-ft</name><type>double</type><node>/position/altitude-ft</node></var>
+      <var><name>alt-agl-ft</name><type>double</type><node>/position/altitude-agl-ft</node></var>
+
+      <var><name>roll-deg</name><type>double</type><node>/orientation/roll-deg</node></var>
+      <var><name>pitch-deg</name><type>double</type><node>/orientation/pitch-deg</node></var>
+      <var><name>heading-deg</name><type>double</type><node>/orientation/heading-deg</node></var>
+
+      <var><name>uBody-fps</name><type>double</type><node>/velocities/uBody-fps</node></var>
+      <var><name>vBody-fps</name><type>double</type><node>/velocities/vBody-fps</node></var>
+      <var><name>wBody-fps</name><type>double</type><node>/velocities/wBody-fps</node></var>
+
+      <var><name>p-rad_s</name><type>double</type><node>/velocities/p-rad_sec</node></var>
+      <var><name>q-rad_s</name><type>double</type><node>/velocities/q-rad_sec</node></var>
+      <var><name>r-rad_s</name><type>double</type><node>/velocities/r-rad_sec</node></var>
+
+      <var><name>sim-time-sec</name><type>double</type><node>/sim/time/elapsed-sec</node></var>
+    </input>
+  </generic>
+</PropertyList>
+

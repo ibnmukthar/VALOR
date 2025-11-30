@@ -8,17 +8,46 @@
   },
   "sim": {
     "dt": 0.01,
-    "t_final": 30.0,
+    "t_final": 110.0,
+    "approach_tas_mps": 38.6,
+    "aircraft": "c172r",
+    "aircraft_candidates": ["c172r", "c172p", "pa28-180"],
+
+
     "init": {
       "agl_ft": 200.0,
-      "vtrue_kts": 130.0,
+      "vtrue_kts": 75.0,
       "phi_deg": 0.0,
-      "theta_deg": 3.0,
-      "psi_deg": 90.0
+      "theta_deg": 0.0,
+      "psi_deg": 90.0,
+      "use_glideslope_ic": true,
+      "initial_dist_nm": 2.0,
+      "glideslope_deg": 3.0
+    },
+    "td_gate": {"alt_ft": 10.0, "dist_m": 5.0, "t_min_s": 2.0}
+  },
+  "wind": {
+    "model": "hybrid",
+    "turb_decay_h_m": 30.0,
+    "shear": { "type": "monin_obukhov", "z_ref_m": 10.0, "z0_m": 0.1, "L_m": -50.0 },
+    "dryden": {
+      "sigma_u": 2.0, "sigma_v": 2.0, "sigma_w": 1.0,
+      "Lu": 200.0, "Lv": 200.0, "Lw": 50.0,
+      "seed": 7
     }
   },
   "controllers": {
-    "roll_pid": { "kp": 0.12, "ki": 0.02, "kd": 0.03, "umin": -1.0, "umax": 1.0 },
-    "glide_pid": { "kp": 0.08, "ki": 0.01, "kd": 0.02, "umin": -1.0, "umax": 1.0 }
+    "roll_pid": { "kp": 0.08, "ki": 0.00, "kd": 0.02, "umin": -1.0, "umax": 1.0 },
+    "glide_pid": { "kp": 0.06, "ki": 0.00, "kd": 0.02, "umin": -0.3, "umax": 0.3 },
+    "throttle_pid": { "kp": 0.6, "ki": 0.15, "kd": 0.0, "umin": 0.0, "umax": 1.0 }
+  },
+  "viz": {
+    "flightgear": {
+      "enabled": true,
+      "host": "127.0.0.1",
+      "port": 5501,
+      "protocol": "generic",
+      "rate_hz": 60
+    }
   }
 }

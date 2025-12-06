@@ -1,4 +1,5 @@
 import math
+import os
 import socket
 import struct
 import time
@@ -26,6 +27,12 @@ class FlightGearGenericSender:
             except Exception:
                 self._elev_ft = 0.0
 
+        # Optional debug: freeze the pose sent to FlightGear at the first
+        # call, so we can verify that a static short-final position renders
+        # correctly. Enable via environment variable FG_FREEZE_FDM=1.
+        self._freeze_pose = os.getenv("FG_FREEZE_FDM", "").lower() in ("1", "true", "yes", "on")
+        self._frozen_pose = None
+
     def close(self):
         try:
             self._sock.close()
@@ -52,8 +59,9 @@ class FlightGearGenericSender:
 
         # Altitudes
         h_agl_ft = self._safe_get(fdm, "position/h-agl-ft", 0.0)
-        # Sea-level altitude if present; else add field elevation
-        h_sl_ft = self._safe_get(fdm, "position/h-sl-ft", h_agl_ft + self._elev_ft)
+        # JSBSim has no terrain model, so h-sl-ft often equals h-agl-ft (assumes flat earth at 0).
+        # We ALWAYS compute MSL as AGL + field elevation to give FlightGear correct altitude.
+        h_sl_ft = h_agl_ft + self._elev_ft
 
         # Attitude (deg)
         roll_deg = self._safe_get(fdm, "attitude/phi-deg", 0.0)
@@ -103,6 +111,26 @@ class FlightGearGenericSender:
         phidot = float(p)
         thetadot = float(q)
         psidot = float(r)
+
+        # Optional debug: freeze pose so FG sees a static aircraft on
+        # short final. When enabled, we capture the first pose and then
+        # keep re-sending it with zero velocities and rates.
+        if self._freeze_pose:
+            if self._frozen_pose is None:
+                self._frozen_pose = (lon_rad, lat_rad, alt_m, agl_m, phi_rad, theta_rad, psi_rad)
+            else:
+                lon_rad, lat_rad, alt_m, agl_m, phi_rad, theta_rad, psi_rad = self._frozen_pose
+                tas_fps = 0.0
+                climb_rate_fps = 0.0
+                v_north_fps = 0.0
+                v_east_fps = 0.0
+                v_down_fps = 0.0
+                u_fps = 0.0
+                v_fps = 0.0
+                w_fps = 0.0
+                phidot = 0.0
+                thetadot = 0.0
+                psidot = 0.0
 
         # Engine / fuel / gear: values chosen to keep FG's internal systems happy
         num_engines = 1

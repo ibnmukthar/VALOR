@@ -256,6 +256,11 @@ def run_case(case_name, crosswind_kts=0.0, gust=None, aircraft=None):
     # Initialize previous lat/lon for cross-track based lateral guidance
     lat_prev, lon_prev = lat_init, lon_init
 
+    # Debug: print initial position for FlightGear troubleshooting
+    h_agl_init = float(fdm["position/h-agl-ft"])
+    h_sl_init = float(fdm["position/h-sl-ft"])
+    print(f"  [FG_DEBUG] Init pos: lat={lat_init:.5f}, lon={lon_init:.5f}, h_agl={h_agl_init:.1f}ft, h_sl={h_sl_init:.1f}ft, dist_to_thr={s_rem_m:.0f}m")
+
     rows = []
 
     for _ in range(steps):

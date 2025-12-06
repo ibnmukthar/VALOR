@@ -1,10 +1,10 @@
 {
   "airport": {
-    "name": "Example Field",
-    "runway_heading_deg": 90.0,
+    "name": "KSFO Runway 28R",
+    "runway_heading_deg": 280.0,
     "elevation_ft": 13.0,
-    "threshold_lat_deg": 40.6400,
-    "threshold_lon_deg": -73.7800
+    "threshold_lat_deg": 37.6213,
+    "threshold_lon_deg": -122.3590
   },
   "sim": {
     "dt": 0.01,
@@ -19,7 +19,7 @@
       "vtrue_kts": 75.0,
       "phi_deg": 0.0,
       "theta_deg": 0.0,
-      "psi_deg": 90.0,
+      "psi_deg": 280.0,
       "use_glideslope_ic": true,
       "initial_dist_nm": 2.0,
       "glideslope_deg": 3.0

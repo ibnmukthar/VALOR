@@ -14,11 +14,17 @@ ROOT_DIR="$(cd "$(dirname "$0")"/.. && pwd)"
 #   --fdm=null --native-fdm=socket,in,<rate>,127.0.0.1,<port>,udp
 # JSBSim sends FGNetFDM packets to the same host/port from scripts/fg_sender.py.
 
-# Initial viewpoint roughly near data/config.json defaults
-LAT=40.6400
-LON=-73.7800
-ALT_FT=213    # ~200 ft AGL + 13 ft field elev
-HDG=90
+# Initial viewpoint: start FlightGear where JSBSim puts the aircraft
+# (2 NM back from threshold along extended centerline, on glideslope)
+# KSFO Runway 28R: threshold at 37.6213, -122.359; runway heading 280 deg.
+# 2 NM = 3704 m; heading 280 -> aircraft starts ESE of threshold.
+# At lat 37.62: 1 deg lat ~ 111000 m, 1 deg lon ~ 88000 m
+# dN = -3704 * cos(280) = -3704 * 0.1736 = -643 m = -0.0058 deg lat
+# dE = -3704 * sin(280) = -3704 * (-0.9848) = +3648 m = +0.0414 deg lon
+LAT=37.6155     # threshold (37.6213) - 0.0058
+LON=-122.3176   # threshold (-122.359) + 0.0414
+ALT_FT=650      # on 3 deg glideslope at 2 NM (~636 ft AGL + 13 ft elev)
+HDG=280
 
 # Resolve FlightGear executable
 # Priority:
@@ -153,17 +159,29 @@ LOG_STDERR=${LOG_STDERR:-0}
 
 [ "$DEBUG" = 1 ] && set -x
 
+# Default to C172P for realistic visualization, but allow override via
+# FG_AIRCRAFT for simpler external-FDM-friendly models (e.g. ufo).
+AIRCRAFT="${FG_AIRCRAFT:-ufo}"
+
+# Start at the airport (not explicit lat/lon) to ensure FG loads proper scenery.
 CMD=("$FGFS_BIN"
-  --aircraft=c172p
+  --aircraft="$AIRCRAFT"
   --fdm=null
   --native-fdm=socket,in,$RATE,127.0.0.1,$PORT,udp
-  --lat="$LAT" --lon="$LON" --altitude="$ALT_FT" --heading="$HDG"
-  --timeofday=noon --geometry=1280x720
-  # Make sure the C172p's Nasal fuel logic sees usable fuel in both tanks
-  --prop:bool:/consumables/fuel/tank[0]/selected=true
-  --prop:bool:/consumables/fuel/tank[1]/selected=true
-  --prop:double:/consumables/fuel/tank[0]/level-gal_us=25
-  --prop:double:/consumables/fuel/tank[1]/level-gal_us=25
+  --airport=KSFO
+  --runway=28R
+  --offset-distance=2
+  --offset-azimuth=180
+  --altitude="$ALT_FT"
+  --timeofday=noon
+  --geometry=1280x720
+  --disable-ai-traffic
+  --prop:/sim/current-view/view-number=1
+  --prop:/consumables/fuel/tank[0]/level-gal_us=20
+  --prop:/consumables/fuel/tank[1]/level-gal_us=20
+  --prop:/consumables/fuel/tank[0]/selected=true
+  --prop:/consumables/fuel/tank[1]/selected=true
+  --enable-fuel-freeze
 )
 
 if [ "$DRY_RUN" = 1 ]; then

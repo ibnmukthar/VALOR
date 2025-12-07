@@ -15,29 +15,32 @@ FG_PORT="${FG_PORT:-5501}"
 FG_RATE="${FG_RATE:-50}"
 AIRCRAFT="${FG_AIRCRAFT:-c172p}"
 
-# KSFO Runway 28R approach position
-# 3nm back from threshold on extended centerline
-AIRPORT="KSFO"
-RUNWAY="28R"
-RUNWAY_HDG=280
+# Read configuration from config.json to match simulation
+CONFIG_FILE="${CONFIG_FILE:-data/config.json}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
-# Threshold position
-THR_LAT=37.6213
-THR_LON=-122.3590
-
-# Calculate initial position (3nm back on centerline)
-DIST_NM=3.0
-DIST_M=$(echo "$DIST_NM * 1852" | bc -l)
-
-# Python for position calculation
+# Python script to read config and compute initial position
 INIT_POS=$(python3 << EOF
+import json
 import math
+import os
 
-thr_lat = $THR_LAT
-thr_lon = $THR_LON
-rwy_hdg = $RUNWAY_HDG
-dist_m = $DIST_M
-gs_deg = 3.0
+config_path = os.path.join("$PROJECT_DIR", "$CONFIG_FILE")
+with open(config_path, 'r') as f:
+    config = json.load(f)
+
+airport = config["airport"]
+sim = config["simulation"]
+
+thr_lat = airport["threshold_lat_deg"]
+thr_lon = airport["threshold_lon_deg"]
+rwy_hdg = airport["runway_heading_deg"]
+field_elev = airport["elevation_ft"]
+
+dist_nm = sim["initial_distance_nm"]
+dist_m = dist_nm * 1852
+gs_deg = sim["glideslope_deg"]
 
 # Earth radius
 R = 6371000
@@ -57,15 +60,16 @@ lon2 = lon_rad + math.atan2(
     math.cos(dist_m / R) - math.sin(lat_rad) * math.sin(lat2)
 )
 
-# Altitude on glideslope (3 deg)
+# Altitude on glideslope
 alt_m = dist_m * math.tan(math.radians(gs_deg))
-alt_ft = alt_m * 3.28084 + 13  # Add field elevation
+alt_ft = alt_m * 3.28084 + field_elev
 
-print(f"{math.degrees(lat2):.6f} {math.degrees(lon2):.6f} {alt_ft:.0f}")
+# Output: lat lon alt airport runway heading
+print(f"{math.degrees(lat2):.6f} {math.degrees(lon2):.6f} {alt_ft:.0f} {airport['icao']} {airport['runway_id']} {int(rwy_hdg)}")
 EOF
 )
 
-read INIT_LAT INIT_LON INIT_ALT <<< "$INIT_POS"
+read INIT_LAT INIT_LON INIT_ALT AIRPORT RUNWAY RUNWAY_HDG <<< "$INIT_POS"
 
 echo "=============================================="
 echo "VALOR - FlightGear Visualization"

@@ -21,8 +21,8 @@
   "simulation": {
     "dt_sec": 0.01,
     "max_duration_sec": 180,
-    "initial_distance_nm": 2.0,
-    "glideslope_deg": 6.0,
+    "initial_distance_nm": 3.0,
+    "glideslope_deg": 3.0,
     "initial_altitude_agl_ft": 600
   },
   "autoland": {
@@ -73,8 +73,8 @@
     }
   },
   "wind": {
-    "base_direction_deg": 250,
-    "base_speed_kts": 5,
+    "base_direction_deg": 240,
+    "base_speed_kts": 20,
     "crosswind_component_kts": 12,
     "shear": {
       "enabled": true,
@@ -83,12 +83,12 @@
       "reference_height_m": 10.0
     },
     "turbulence": {
-      "enabled": false,
+      "enabled": true,
       "model": "dryden",
       "intensity": "moderate",
-      "sigma_u_mps": 2.0,
-      "sigma_v_mps": 2.5,
-      "sigma_w_mps": 1.5,
+      "sigma_u_mps": 4.0,
+      "sigma_v_mps": 4.0,
+      "sigma_w_mps": 2.5,
       "scale_length_m": 200
     },
     "microburst": {

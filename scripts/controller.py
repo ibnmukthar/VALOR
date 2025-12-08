@@ -138,9 +138,9 @@ class AutolandController:
             output_min=-1.0, output_max=1.0
         )
 
-        # Pitch rate controller (inner loop) - increased gains for flare authority
+        # Pitch rate controller (inner loop) - reduced gains for stability
         self.pitch_controller = PIDController(
-            kp=2.5, ki=0.5, kd=0.1,
+            kp=0.5, ki=0.1, kd=0.2,
             output_min=-1.0, output_max=1.0
         )
 
@@ -236,61 +236,130 @@ class AutolandController:
         """
         Normal approach control - track localizer and glideslope.
 
-        Uses crab angle to maintain ground track.
+        CRITICAL: On the "back side of the power curve" (approach):
+        - PITCH controls SPEED (pitch down to accelerate, pitch up to slow)
+        - THROTTLE controls FLIGHT PATH / ALTITUDE (more power = shallower descent)
+
+        Speed is PRIORITY #1. A slow aircraft will sink no matter what.
         """
         # === LATERAL CONTROL (LOCALIZER) ===
-        # Use GROUND TRACK (not heading) for wind-corrected guidance
         cte_m = state.cross_track_error_m
 
         # Desired ground track: runway heading + intercept angle based on CTE
-        # Positive CTE (right of centerline) → need track LEFT of runway
-        # Max intercept angle: 30 degrees at 100m offset
         intercept_angle_deg = -cte_m * 0.3  # 100m → 30° intercept
         intercept_angle_deg = max(-30, min(30, intercept_angle_deg))
 
         desired_track_rad = self.runway_heading_rad + intercept_angle_deg * math.pi / 180
-
-        # Track error: current ground track vs desired track
-        # This automatically accounts for wind - we control where we're GOING not where we're POINTING
         track_error = self._normalize_angle(state.track_angle_rad - desired_track_rad)
         track_error_deg = track_error * RAD_TO_DEG
 
-        # Bank command proportional to track error
-        # 10° track error → 15° bank
         bank_cmd_deg = -track_error_deg * 1.5
-
-        # Limit bank angle
         bank_cmd_deg = max(-self.max_bank_deg, min(self.max_bank_deg, bank_cmd_deg))
 
-        # Inner loop: bank angle to aileron command
         bank_error = bank_cmd_deg - state.phi_deg
         aileron = self.roll_controller.compute(bank_error, dt)
 
-        # === VERTICAL CONTROL (GLIDESLOPE) ===
-        # Glideslope error to pitch command
+        # === SPEED-PRIORITY VERTICAL CONTROL ===
+        #
+        # The fundamental insight: An aircraft on approach that gets slow will sink
+        # because it needs to increase angle of attack (more drag) to maintain lift.
+        # This creates a vicious cycle - slow → high alpha → more drag → slower → stall.
+        #
+        # Solution: PITCH FOR SPEED, THROTTLE FOR FLIGHT PATH
+        # - Too slow? Pitch DOWN to trade altitude for speed (accept going below GS)
+        # - Too fast? Pitch UP to slow down
+        # - On speed? Use throttle to control sink rate / glideslope tracking
+
+        speed_kts = state.vcas_kts
         gs_error_deg = state.glideslope_error_deg
-        pitch_cmd_deg = self.gs_controller.compute(-gs_error_deg, dt)
+        sink_rate_fpm = state.vd_fpm  # Positive = descending
 
-        # Add nominal approach pitch
-        target_pitch_deg = 2.0 + pitch_cmd_deg  # 2 deg nose up baseline
+        # Target speed with margin above stall
+        target_speed_kts = self.approach_speed_kts  # 70 kts from config
+        speed_error = target_speed_kts - speed_kts  # Positive = too slow
 
-        # Inner loop: pitch to elevator command
+        # === PITCH CONTROL: Maintain speed ===
+        # C172 trimmed approach pitch is about 0° to -2° at 70 kts with partial power
+        # We adjust pitch to maintain speed:
+        # - Too slow: reduce pitch (nose down) to accelerate
+        # - Too fast: increase pitch (nose up) to decelerate
+
+        # Base pitch for 70kt approach (approximately -2° for 3° descent at 70kts)
+        BASE_PITCH_DEG = -2.0
+
+        # Speed correction: 1 kt slow = 0.5° more nose down
+        # This is aggressive to prevent the slow-sink-stall cycle
+        pitch_for_speed = -speed_error * 0.5
+
+        target_pitch_deg = BASE_PITCH_DEG + pitch_for_speed
+
+        # Hard limits to prevent extreme attitudes
+        # Never pitch below -10° (excessive dive)
+        # Never pitch above +5° (risk of stall on approach)
+        target_pitch_deg = max(-10.0, min(5.0, target_pitch_deg))
+
+        # Alpha protection: if alpha is getting high, don't let pitch increase further
+        if state.alpha_deg > 10:
+            # Approaching stall - reduce pitch aggressively
+            target_pitch_deg = min(target_pitch_deg, -5.0)
+        elif state.alpha_deg > 8:
+            # Getting high - limit pitch
+            target_pitch_deg = min(target_pitch_deg, 0.0)
+
+        # Compute elevator command
         pitch_error = target_pitch_deg - state.theta_deg
         elevator = self.pitch_controller.compute(pitch_error, dt)
 
-        # === AUTOTHROTTLE ===
-        speed_error = self.approach_speed_kts - state.vcas_kts
-        throttle_base = 0.55  # Nominal approach throttle (gear and flaps down)
-        throttle_correction = self.throttle_controller.compute(speed_error, dt)
-        # More aggressive throttle response
-        throttle_correction *= 2.0
-        throttle = max(0.2, min(1.0, throttle_base + throttle_correction))
+        # === THROTTLE CONTROL: Control flight path / glideslope ===
+        # With speed maintained by pitch, we use throttle to control descent rate
+        #
+        # Target sink rate for 3° glideslope at 70 kts groundspeed:
+        # sink_rate = groundspeed × tan(3°) = 70 × 1.68781 × 60 × 0.0524 = ~370 fpm
 
-        # === YAW CONTROL (CRAB) ===
-        # During approach, use crab - keep wings level, let heading differ from track
-        # Rudder primarily for coordinated turns
-        # Use beta (sideslip) to zero for coordinated flight
-        rudder = self.yaw_controller.compute(-state.beta_deg, dt)
+        TARGET_SINK_RATE_FPM = 370.0
+
+        # Calculate sink error - positive means sinking too fast
+        sink_error = sink_rate_fpm - TARGET_SINK_RATE_FPM
+
+        # Base throttle for C172 in approach config (gear down)
+        # This needs to be high enough to maintain shallow descent
+        # In testing, 0.55 gave 765 fpm sink, we need less sink = more power
+        # Rule of thumb: 60-70% power for level flight, slightly less for descent
+        throttle_base = 0.65
+
+        # Sink rate correction: More aggressive to actually control descent
+        # 100 fpm too fast = +10% throttle (was 5%)
+        throttle_for_sink = sink_error * 0.001
+
+        # Glideslope correction: below GS = more power
+        gs_correction = -gs_error_deg * 0.08  # 1° below = +8% throttle
+
+        # Speed deficit adds power
+        speed_correction = 0.0
+        if speed_kts < target_speed_kts - 2:
+            # Add power when slow
+            slow_amount = target_speed_kts - speed_kts
+            speed_correction = slow_amount * 0.03  # 10 kts slow = +30%
+
+        throttle = throttle_base + throttle_for_sink + gs_correction + speed_correction
+
+        # Clamp throttle
+        throttle = max(0.4, min(1.0, throttle))
+
+        # === YAW CONTROL (CRAB TO SIDESLIP TRANSITION) ===
+        decrab_progress = self._compute_decrab_progress(state.alt_agl_ft)
+
+        # Coordinated flight (crab): zero sideslip
+        crab_rudder = self.yaw_controller.compute(-state.beta_deg, dt)
+
+        # Sideslip: align heading with runway
+        heading_error = self._normalize_angle(state.psi_rad - self.runway_heading_rad)
+        heading_error_deg = heading_error * RAD_TO_DEG
+        sideslip_rudder = heading_error_deg * 0.05
+        sideslip_rudder = max(-1.0, min(1.0, sideslip_rudder))
+
+        # Blend
+        rudder = (1.0 - decrab_progress) * crab_rudder + decrab_progress * sideslip_rudder
 
         return aileron, elevator, rudder, throttle
 
@@ -324,6 +393,13 @@ class AutolandController:
         # Exponential curve: starts gentle, gets more aggressive
         target_pitch_deg = 4.0 + 10.0 * (1.0 - h_ratio) ** 1.5  # 4-14 deg
 
+        # Add sink rate feedback to modulate flare pitch
+        # Positive vd_fpm means descending (sink)
+        # Target is ~200 fpm sink at touchdown
+        sink_rate_error = (state.vd_fpm - self.flare_target_sink_fpm) / 500.0  # Normalized
+        # If sinking too fast, increase pitch; if too slow, decrease pitch
+        target_pitch_deg += sink_rate_error * 3.0  # 3 deg per 500 fpm error
+
         # Full up elevator command to achieve flare
         pitch_error = target_pitch_deg - state.theta_deg
         elevator = max(-1.0, min(1.0, pitch_error * 0.25))  # High gain
@@ -333,10 +409,10 @@ class AutolandController:
         throttle = max(0.15, 0.4 * h_ratio)  # 40% at start, 15% at ground
 
         # === RUDDER ===
-        # Align with runway (decrab)
+        # Align with runway (decrab) - stronger authority than approach
         heading_error = self._normalize_angle(state.psi_rad - self.runway_heading_rad)
         heading_error_deg = heading_error * RAD_TO_DEG
-        rudder = heading_error_deg * 0.03  # Gentle rudder
+        rudder = heading_error_deg * 0.1  # Increased gain for runway alignment
         rudder = max(-1.0, min(1.0, rudder))
 
         return aileron, elevator, rudder, throttle

@@ -1,53 +1,114 @@
 {
   "airport": {
     "name": "KSFO Runway 28R",
-    "runway_heading_deg": 280.0,
+    "icao": "KSFO",
+    "runway_id": "28R",
+    "runway_heading_deg": 298.0,
     "elevation_ft": 13.0,
-    "threshold_lat_deg": 37.6213,
-    "threshold_lon_deg": -122.3590
+    "threshold_lat_deg": 37.6135,
+    "threshold_lon_deg": -122.3574,
+    "runway_length_ft": 11870,
+    "runway_width_ft": 200
   },
-  "sim": {
-    "dt": 0.01,
-    "t_final": 110.0,
-    "approach_tas_mps": 38.6,
-    "aircraft": "c172r",
-    "aircraft_candidates": ["c172r", "c172p", "pa28-180"],
-
-
-    "init": {
-      "agl_ft": 200.0,
-      "vtrue_kts": 75.0,
-      "phi_deg": 0.0,
-      "theta_deg": 0.0,
-      "psi_deg": 280.0,
-      "use_glideslope_ic": true,
-      "initial_dist_nm": 2.0,
-      "glideslope_deg": 3.0
+  "aircraft": {
+    "model": "c172p",
+    "approach_speed_kts": 70,
+    "vref_kts": 65,
+    "flap_setting": 0.0,
+    "max_crosswind_kts": 15,
+    "max_sink_rate_fpm": 600
+  },
+  "simulation": {
+    "dt_sec": 0.01,
+    "max_duration_sec": 300,
+    "initial_distance_nm": 1.5,
+    "glideslope_deg": 3.0,
+    "initial_altitude_agl_ft": 600
+  },
+  "autoland": {
+    "localizer": {
+      "kp": 2.0,
+      "ki": 0.1,
+      "kd": 0.5,
+      "max_bank_deg": 20,
+      "capture_threshold_deg": 2.0
     },
-    "td_gate": {"alt_ft": 10.0, "dist_m": 5.0, "t_min_s": 2.0}
+    "glideslope": {
+      "kp": 1.5,
+      "ki": 0.05,
+      "kd": 0.3,
+      "max_pitch_deg": 10,
+      "min_pitch_deg": -5
+    },
+    "flare": {
+      "initiation_height_ft": 100,
+      "target_sink_rate_fpm": 200,
+      "pitch_rate_deg_per_sec": 3.0,
+      "throttle_retard_height_ft": 50
+    },
+    "autothrottle": {
+      "kp": 0.05,
+      "ki": 0.01,
+      "kd": 0.0,
+      "min_throttle": 0.0,
+      "max_throttle": 1.0
+    },
+    "yaw_control": {
+      "decrab_height_ft": 100,
+      "decrab_transition_ft": 50,
+      "max_sideslip_deg": 10,
+      "rudder_kp": 0.5,
+      "rudder_kd": 0.1
+    }
+  },
+  "wind_shear": {
+    "detection": {
+      "airspeed_loss_threshold_kts": 20,
+      "sink_rate_threshold_fpm": 1500,
+      "pitch_attitude_threshold_deg": 8
+    },
+    "go_around": {
+      "enabled": false,
+      "min_altitude_ft": 200
+    }
   },
   "wind": {
-    "model": "hybrid",
-    "turb_decay_h_m": 30.0,
-    "shear": { "type": "monin_obukhov", "z_ref_m": 10.0, "z0_m": 0.1, "L_m": -50.0 },
-    "dryden": {
-      "sigma_u": 2.0, "sigma_v": 2.0, "sigma_w": 1.0,
-      "Lu": 200.0, "Lv": 200.0, "Lw": 50.0,
-      "seed": 7
-    }
-  },
-  "controllers": {
-    "roll_pid": { "kp": 0.08, "ki": 0.00, "kd": 0.02, "umin": -1.0, "umax": 1.0 },
-    "glide_pid": { "kp": 0.06, "ki": 0.00, "kd": 0.02, "umin": -0.3, "umax": 0.3 },
-    "throttle_pid": { "kp": 0.6, "ki": 0.15, "kd": 0.0, "umin": 0.0, "umax": 1.0 }
-  },
-  "viz": {
-    "flightgear": {
+    "base_direction_deg": 230,
+    "base_speed_kts": 25,
+    "crosswind_component_kts": 12,
+    "shear": {
       "enabled": true,
-      "host": "127.0.0.1",
-      "port": 5501,
-      "protocol": "generic",
-      "rate_hz": 60
+      "type": "logarithmic",
+      "surface_roughness_m": 0.03,
+      "reference_height_m": 10.0
+    },
+    "turbulence": {
+      "enabled": true,
+      "model": "dryden",
+      "intensity": "moderate",
+      "sigma_u_mps": 5.0,
+      "sigma_v_mps": 5.0,
+      "sigma_w_mps": 3.0,
+      "scale_length_m": 200
+    },
+    "microburst": {
+      "enabled": false,
+      "center_distance_nm": 0.5,
+      "radius_nm": 0.25,
+      "max_downdraft_fpm": 1500,
+      "max_headwind_change_kts": 30
     }
+  },
+  "flightgear": {
+    "enabled": true,
+    "host": "127.0.0.1",
+    "port": 5501,
+    "rate_hz": 50,
+    "fdm_version": 24
+  },
+  "logging": {
+    "csv_output": true,
+    "log_rate_hz": 10,
+    "output_dir": "results/logs"
   }
 }

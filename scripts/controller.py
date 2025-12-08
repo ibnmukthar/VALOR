@@ -349,13 +349,17 @@ class AutolandController:
         # === YAW CONTROL (CRAB TO SIDESLIP TRANSITION) ===
         decrab_progress = self._compute_decrab_progress(state.alt_agl_ft)
 
+        # More aggressive decrab below 50 ft for clear visual alignment
+        if state.alt_agl_ft < 50:
+            decrab_progress = min(1.0, decrab_progress * 1.5)
+
         # Coordinated flight (crab): zero sideslip
         crab_rudder = self.yaw_controller.compute(-state.beta_deg, dt)
 
-        # Sideslip: align heading with runway
+        # Sideslip: align heading with runway - stronger gain for visible effect
         heading_error = self._normalize_angle(state.psi_rad - self.runway_heading_rad)
         heading_error_deg = heading_error * RAD_TO_DEG
-        sideslip_rudder = heading_error_deg * 0.05
+        sideslip_rudder = heading_error_deg * 0.1  # Increased from 0.05
         sideslip_rudder = max(-1.0, min(1.0, sideslip_rudder))
 
         # Blend crab and sideslip rudder
@@ -407,15 +411,16 @@ class AutolandController:
         # Target is ~200 fpm sink at touchdown
         sink_rate_error = (state.vd_fpm - self.flare_target_sink_fpm) / 500.0  # Normalized
         # If sinking too fast, increase pitch; if too slow, decrease pitch
-        target_pitch_deg += sink_rate_error * 3.0  # 3 deg per 500 fpm error
+        # Increased gain for better response in gusty conditions
+        target_pitch_deg += sink_rate_error * 5.0  # Was 3.0 - now 5 deg per 500 fpm error
 
-        # Full up elevator command to achieve flare
+        # Full up elevator command to achieve flare - increased gain for gusty
         pitch_error = target_pitch_deg - state.theta_deg
-        elevator = max(-1.0, min(1.0, pitch_error * 0.25))  # High gain
+        elevator = max(-1.0, min(1.0, pitch_error * 0.4))  # Was 0.25
 
         # === THROTTLE ===
-        # Maintain some power to prevent stall, reduce progressively
-        throttle = max(0.15, 0.4 * h_ratio)  # 40% at start, 15% at ground
+        # Maintain more power to prevent stall in gusty conditions
+        throttle = max(0.25, 0.5 * h_ratio)  # Was max(0.15, 0.4 * h_ratio)
 
         # === RUDDER ===
         # Align with runway AND correct for CTE
@@ -442,10 +447,12 @@ class AutolandController:
         # Elevator slightly down for nosewheel authority
         elevator = 0.1
 
-        # Track centerline with rudder
+        # Track centerline with rudder - use DEGREES for proper scaling
         heading_error = self._normalize_angle(state.psi_rad - self.runway_heading_rad)
-        cte_correction = state.cross_track_error_m * 0.01
-        rudder = heading_error * 2.0 + cte_correction
+        heading_error_deg = heading_error * RAD_TO_DEG
+
+        # Stronger steering: 10° heading error → full rudder, 10m CTE → 0.5 rudder
+        rudder = heading_error_deg * 0.1 + state.cross_track_error_m * 0.05
         rudder = max(-1.0, min(1.0, rudder))
 
         # Wings level

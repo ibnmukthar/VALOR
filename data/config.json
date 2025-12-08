@@ -73,8 +73,8 @@
     }
   },
   "wind": {
-    "base_direction_deg": 250,
-    "base_speed_kts": 15,
+    "base_direction_deg": 240,
+    "base_speed_kts": 18,
     "crosswind_component_kts": 12,
     "shear": {
       "enabled": true,
@@ -86,10 +86,11 @@
       "enabled": false,
       "model": "dryden",
       "intensity": "moderate",
-      "sigma_u_mps": 5.0,
-      "sigma_v_mps": 5.0,
-      "sigma_w_mps": 3.0,
-      "scale_length_m": 200
+      "sigma_u_mps": 4.0,
+      "sigma_v_mps": 4.0,
+      "sigma_w_mps": 2.5,
+      "scale_length_m": 200,
+      "seed": 1009
     },
     "microburst": {
       "enabled": false,

@@ -134,8 +134,11 @@ class SimulationRunner:
         last_realtime_check = time.time()
         last_sim_time_check = 0.0
 
-        print(f"{'Time':>6} {'Alt':>6} {'Speed':>6} {'Phase':>12} {'CTE':>8} {'Status'}")
-        print("-" * 60)
+        # Get runway heading for crab angle display
+        runway_heading_deg = self.config["airport"]["runway_heading_deg"]
+
+        print(f"{'Time':>6} {'Alt':>6} {'Speed':>6} {'Phase':>12} {'CTE':>8} {'Crab':>7} {'Status'}")
+        print("-" * 70)
         if realtime_enabled:
             print("(Running in real-time for FlightGear visualization)")
         sys.stdout.flush()
@@ -240,9 +243,17 @@ class SimulationRunner:
                 if shear_alert.detected:
                     status = f"SHEAR: {shear_alert.shear_type.value}"
 
+                # Calculate crab angle (heading - runway heading)
+                crab_angle = state.psi_deg - runway_heading_deg
+                # Normalize to -180 to +180
+                while crab_angle > 180:
+                    crab_angle -= 360
+                while crab_angle < -180:
+                    crab_angle += 360
+
                 print(f"{state.t:6.1f} {state.alt_agl_ft:6.0f} "
                       f"{state.vcas_kts:6.0f} {phase.name:>12} "
-                      f"{state.cross_track_error_m:+8.1f} {status}")
+                      f"{state.cross_track_error_m:+8.1f} {crab_angle:+7.1f}° {status}")
                 sys.stdout.flush()
 
             # Check termination conditions
@@ -401,8 +412,8 @@ def configure_scenario(config_path: str, scenario: str):
         config["wind"]["microburst"]["enabled"] = False
 
     elif scenario == "moderate":
-        config["wind"]["base_speed_kts"] = 15
-        config["wind"]["base_direction_deg"] = 250  # 30° crosswind
+        config["wind"]["base_speed_kts"] = 18  # Increased for visible crabbing
+        config["wind"]["base_direction_deg"] = 240  # 58° crosswind angle (was 250)
         config["wind"]["turbulence"]["enabled"] = False
         config["wind"]["microburst"]["enabled"] = False
 
@@ -416,12 +427,14 @@ def configure_scenario(config_path: str, scenario: str):
         config["wind"]["microburst"]["enabled"] = False
 
     elif scenario == "severe":
-        config["wind"]["base_speed_kts"] = 25
-        config["wind"]["base_direction_deg"] = 230  # Near max crosswind
+        # 25 kt crosswind at surface, MOS shear increases with altitude
+        # Runway 298, wind from 208 creates pure crosswind
+        config["wind"]["base_speed_kts"] = 15  # Surface reference, MOS amplifies at altitude
+        config["wind"]["base_direction_deg"] = 208  # Pure crosswind direction
         config["wind"]["turbulence"]["enabled"] = True
-        config["wind"]["turbulence"]["sigma_u_mps"] = 5.0
-        config["wind"]["turbulence"]["sigma_v_mps"] = 5.0
-        config["wind"]["turbulence"]["sigma_w_mps"] = 3.0
+        config["wind"]["turbulence"]["sigma_u_mps"] = 1.2
+        config["wind"]["turbulence"]["sigma_v_mps"] = 1.2
+        config["wind"]["turbulence"]["sigma_w_mps"] = 0.8
         config["wind"]["microburst"]["enabled"] = False
 
     elif scenario == "microburst":

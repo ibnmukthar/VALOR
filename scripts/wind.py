@@ -300,7 +300,7 @@ class WindEnvironment:
                 sigma_v=turb_cfg.get("sigma_v_mps", 2.0),
                 sigma_w=turb_cfg.get("sigma_w_mps", 1.5),
                 scale_length=turb_cfg.get("scale_length_m", 200.0),
-                seed=42
+                seed=turb_cfg.get("seed", None)
             )
         else:
             self.turbulence = None

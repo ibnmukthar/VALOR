@@ -369,17 +369,22 @@ class AutolandController:
         Flare control - reduce sink rate for touchdown.
 
         Uses exponential pitch-up to arrest descent rate progressively.
+        CRITICAL: Must maintain centerline tracking during flare to avoid landing off-runway.
         """
         alt = state.alt_agl_ft
+        cte_m = state.cross_track_error_m
 
         # === LATERAL CONTROL ===
-        # Keep wings level during flare - gentle corrections only
-        bank_cmd_deg = -state.cross_track_error_m * 0.1  # Very gentle
-        bank_cmd_deg = max(-5, min(5, bank_cmd_deg))  # Strict limit
+        # Maintain centerline tracking during flare - this is critical!
+        # Use stronger corrections than before to prevent drift into water
 
-        # Roll towards wings level
+        # Bank to correct CTE - stronger than approach but still gentle
+        bank_cmd_deg = -cte_m * 0.5  # 0.5 deg bank per meter of CTE (was 0.1)
+        bank_cmd_deg = max(-10, min(10, bank_cmd_deg))  # Allow up to 10 deg (was 5)
+
+        # Roll control with full authority
         bank_error = bank_cmd_deg - state.phi_deg
-        aileron = self.roll_controller.compute(bank_error * 0.5, dt)  # Reduced authority
+        aileron = self.roll_controller.compute(bank_error, dt)  # Full authority (was 0.5)
 
         # === VERTICAL CONTROL (FLARE) ===
         # Exponential flare: pitch increases as altitude decreases
@@ -409,10 +414,15 @@ class AutolandController:
         throttle = max(0.15, 0.4 * h_ratio)  # 40% at start, 15% at ground
 
         # === RUDDER ===
-        # Align with runway (decrab) - stronger authority than approach
+        # Align with runway AND correct for CTE
         heading_error = self._normalize_angle(state.psi_rad - self.runway_heading_rad)
         heading_error_deg = heading_error * RAD_TO_DEG
-        rudder = heading_error_deg * 0.1  # Increased gain for runway alignment
+
+        # Add CTE correction to rudder - steer towards centerline
+        # If aircraft is right of centerline (CTE > 0), need to turn left (negative rudder)
+        cte_rudder = -cte_m * 0.02  # 0.02 rudder per meter of CTE
+
+        rudder = heading_error_deg * 0.1 + cte_rudder
         rudder = max(-1.0, min(1.0, rudder))
 
         return aileron, elevator, rudder, throttle

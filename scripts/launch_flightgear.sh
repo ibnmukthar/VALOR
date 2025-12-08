@@ -40,7 +40,12 @@ field_elev = airport["elevation_ft"]
 
 dist_nm = sim["initial_distance_nm"]
 dist_m = dist_nm * 1852
-gs_deg = sim["glideslope_deg"]
+
+# MUST match simulation.py exactly!
+# simulation.py uses hardcoded 6.5 deg glideslope (achievable for C172 with gear down, no flaps)
+# and adds 300m touchdown zone offset for proper ILS-like approach
+ACTUAL_GLIDESLOPE_DEG = 6.5  # Match simulation.py line 196
+TOUCHDOWN_ZONE_OFFSET_M = 300.0  # Match simulation.py line 192
 
 # Earth radius
 R = 6371000
@@ -60,8 +65,9 @@ lon2 = lon_rad + math.atan2(
     math.cos(dist_m / R) - math.sin(lat_rad) * math.sin(lat2)
 )
 
-# Altitude on glideslope
-alt_m = dist_m * math.tan(math.radians(gs_deg))
+# Altitude on glideslope - MUST match simulation.py line 197
+# Uses touchdown zone offset and actual achievable glideslope
+alt_m = (dist_m + TOUCHDOWN_ZONE_OFFSET_M) * math.tan(math.radians(ACTUAL_GLIDESLOPE_DEG))
 alt_ft = alt_m * 3.28084 + field_elev
 
 # Output: lat lon alt airport runway heading

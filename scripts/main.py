@@ -23,6 +23,7 @@ from simulation import JSBSimEngine, AircraftState, FT_TO_M, M_TO_FT, KTS_TO_MPS
 from controller import AutolandController, AutolandPhase
 from wind import WindEnvironment, WindShearDetector, WindShearType
 from flightgear import FGNetFDM, create_flightgear_sender
+from metrics import FlightMetrics
 
 
 class SimulationRunner:
@@ -54,6 +55,12 @@ class SimulationRunner:
         # Logging
         self.log_data = []
         self.log_rate_hz = self.config["logging"]["log_rate_hz"]
+
+        # Flight metrics for research evaluation
+        self.metrics = FlightMetrics(
+            v_ref_kts=self.config["aircraft"]["approach_speed_kts"],
+            gamma_ref_deg=-self.config["simulation"]["glideslope_deg"]
+        )
 
         # FG send rate tracking
         fg_cfg = self.config.get("flightgear", {})
@@ -210,6 +217,18 @@ class SimulationRunner:
                     last_realtime_check = time.time()
                     last_sim_time_check = state.t
 
+            # Update metrics (before touchdown, while in approach or flare)
+            if not state.wow and self.controller.get_phase() in (AutolandPhase.APPROACH, AutolandPhase.FLARE):
+                self.metrics.update(
+                    cte_m=state.cross_track_error_m,
+                    gamma_deg=state.gamma_deg,
+                    vcas_kts=state.vcas_kts,
+                    dt=self.dt
+                )
+                # Record flare initiation
+                if self.controller.get_phase() == AutolandPhase.FLARE:
+                    self.metrics.record_flare(state.t)
+
             # Log data
             if step_count % log_interval == 0:
                 self._log_state(state, wind, self.controller.get_phase())
@@ -231,6 +250,12 @@ class SimulationRunner:
 
             if state.wow and not touchdown_state:
                 touchdown_state = AircraftState(**state.__dict__)
+                # Record touchdown metrics
+                self.metrics.record_touchdown(
+                    cte_m=state.cross_track_error_m,
+                    sink_fpm=state.vd_fpm,
+                    speed_kts=state.vcas_kts
+                )
                 print(f"\n*** TOUCHDOWN at t={state.t:.1f}s ***")
                 print(f"    Position: {state.lat_deg:.6f}°N, {state.lon_deg:.6f}°W")
                 print(f"    Sink rate: {state.vd_fpm:.0f} fpm")
@@ -259,6 +284,9 @@ class SimulationRunner:
         # Save log data
         self._save_log()
 
+        # Print flight metrics summary
+        print("\n" + self.metrics.summary())
+
         # Compile results
         results = {
             "success": touchdown_state is not None and final_phase == AutolandPhase.ROLLOUT,
@@ -266,6 +294,7 @@ class SimulationRunner:
             "final_phase": final_phase.name,
             "sim_time_sec": state.t,
             "wall_time_sec": elapsed,
+            "metrics": self.metrics.to_dict(),
         }
 
         if touchdown_state:
@@ -443,6 +472,14 @@ def main():
             print(f"  Lateral deviation: {td['cross_track_error_m']:.1f} m")
             print(f"  Heading: {td['heading_deg']:.1f}°")
             print(f"  Speed: {td['airspeed_kts']:.0f} kts")
+
+        # Research metrics summary
+        if "metrics" in results:
+            m = results["metrics"]
+            print(f"\nResearch Metrics (for report):")
+            print(f"  RMS Lateral:    {m['rms_lateral_m']:.2f} m")
+            print(f"  RMS Vertical:   {m['rms_vertical_deg']:.3f}°")
+            print(f"  Max Speed Dev:  {m['max_speed_error_kts']:.1f} kts")
 
         if results.get('go_around'):
             print("\n*** GO-AROUND WAS TRIGGERED ***")

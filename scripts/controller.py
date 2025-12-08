@@ -358,8 +358,12 @@ class AutolandController:
         sideslip_rudder = heading_error_deg * 0.05
         sideslip_rudder = max(-1.0, min(1.0, sideslip_rudder))
 
-        # Blend
+        # Blend crab and sideslip rudder
         rudder = (1.0 - decrab_progress) * crab_rudder + decrab_progress * sideslip_rudder
+
+        # Add yaw rate damper for Dutch roll suppression
+        rudder += self._yaw_rate_damper(state.r)
+        rudder = max(-1.0, min(1.0, rudder))
 
         return aileron, elevator, rudder, throttle
 
@@ -479,6 +483,31 @@ class AutolandController:
             return 1.0
         else:
             return (self.decrab_height_ft - alt_ft) / self.decrab_transition_ft
+
+    def _yaw_rate_damper(self, r_rad_s: float) -> float:
+        """
+        Simple yaw rate damper for Dutch roll suppression.
+
+        Only damps yaw RATE oscillations - does not try to control sideslip.
+        This is the key to preventing Dutch roll without fighting the aircraft's
+        natural crab angle in crosswind.
+
+        δ_r = -K_r · r
+
+        Args:
+            r_rad_s: Yaw rate in rad/s (positive = nose right)
+
+        Returns:
+            Rudder correction (-1 to 1), limited to ±0.3
+        """
+        K_r = 0.5  # Moderate yaw rate damping gain
+        r_deg_s = r_rad_s * RAD_TO_DEG
+
+        # Compute damping rudder: oppose yaw rate
+        damper_rudder = -K_r * r_deg_s / 10.0
+
+        # Limit contribution to ±0.3 to prevent overpowering primary control
+        return max(-0.3, min(0.3, damper_rudder))
 
     def _normalize_angle(self, angle: float) -> float:
         """Normalize angle to -pi to pi."""

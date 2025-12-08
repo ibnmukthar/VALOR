@@ -135,6 +135,11 @@ class AircraftState:
         """Groundspeed in knots."""
         return self.groundspeed_fps * 0.592484
 
+    @property
+    def r_rad_s(self) -> float:
+        """Yaw rate in rad/s (for yaw damper)."""
+        return self.r
+
 
 class JSBSimEngine:
     """Wrapper around JSBSim FDM for flight simulation."""

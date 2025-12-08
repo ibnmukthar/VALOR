@@ -73,8 +73,8 @@
     }
   },
   "wind": {
-    "base_direction_deg": 230,
-    "base_speed_kts": 25,
+    "base_direction_deg": 250,
+    "base_speed_kts": 15,
     "crosswind_component_kts": 12,
     "shear": {
       "enabled": true,
@@ -83,7 +83,7 @@
       "reference_height_m": 10.0
     },
     "turbulence": {
-      "enabled": true,
+      "enabled": false,
       "model": "dryden",
       "intensity": "moderate",
       "sigma_u_mps": 5.0,

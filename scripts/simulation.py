@@ -214,6 +214,16 @@ class JSBSimEngine:
         approach_kts = self.config["aircraft"]["approach_speed_kts"]
         self.fdm.set_property_value("ic/vc-kts", approach_kts)
 
+        # Set initial ground velocity components to match runway heading
+        # This ensures the ground track (velocity vector) starts aligned with runway
+        # Without this, when wind is applied the track shifts off centerline immediately
+        approach_fps = approach_kts * 1.68781  # kts to fps
+        vn_fps = approach_fps * math.cos(self.rwy_heading_rad)
+        ve_fps = approach_fps * math.sin(self.rwy_heading_rad)
+        self.fdm.set_property_value("ic/vn-fps", vn_fps)
+        self.fdm.set_property_value("ic/ve-fps", ve_fps)
+        self.fdm.set_property_value("ic/vd-fps", 0.0)  # No initial vertical velocity
+
         # Zero rates
         self.fdm.set_property_value("ic/p-rad_sec", 0.0)
         self.fdm.set_property_value("ic/q-rad_sec", 0.0)

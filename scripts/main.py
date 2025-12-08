@@ -133,22 +133,37 @@ class SimulationRunner:
             print("(Running in real-time for FlightGear visualization)")
         sys.stdout.flush()
 
-        while state.t < self.max_duration:
-            # Get current wind
-            wind = self.wind_env.get_wind(
-                altitude_agl_m=state.alt_agl_ft * FT_TO_M,
-                x_m=state.distance_to_threshold_m,
-                y_m=state.cross_track_error_m,
-                airspeed_mps=state.vtrue_fps * FT_TO_M,
-                dt=self.dt
-            )
+        # Wind warmup time - suppress wind initially to let controller establish track
+        wind_warmup_time = 3.0  # seconds
 
-            # Set wind in simulation
-            self.sim.set_wind(
-                wind_north_fps=wind.north * M_TO_FT,
-                wind_east_fps=wind.east * M_TO_FT,
-                wind_down_fps=wind.down * M_TO_FT
-            )
+        while state.t < self.max_duration:
+            # Get current wind - but suppress during warmup to let controller establish track
+            if state.t < wind_warmup_time:
+                # During warmup, use zero wind so ground track aligns with runway
+                # Create a simple object with zero wind values
+                class ZeroWind:
+                    north = 0.0
+                    east = 0.0
+                    down = 0.0
+                    speed_kts = 0.0
+                    direction_deg = 0.0
+                wind = ZeroWind()
+                self.sim.set_wind(0, 0, 0)
+            else:
+                # Normal wind after warmup
+                wind = self.wind_env.get_wind(
+                    altitude_agl_m=state.alt_agl_ft * FT_TO_M,
+                    x_m=state.distance_to_threshold_m,
+                    y_m=state.cross_track_error_m,
+                    airspeed_mps=state.vtrue_fps * FT_TO_M,
+                    dt=self.dt
+                )
+                # Set wind in simulation
+                self.sim.set_wind(
+                    wind_north_fps=wind.north * M_TO_FT,
+                    wind_east_fps=wind.east * M_TO_FT,
+                    wind_down_fps=wind.down * M_TO_FT
+                )
 
             # Check for wind shear
             shear_alert = self.shear_detector.update(

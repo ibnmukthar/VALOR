@@ -21,7 +21,7 @@
   "simulation": {
     "dt_sec": 0.01,
     "max_duration_sec": 300,
-    "initial_distance_nm": 3.0,
+    "initial_distance_nm": 1.5,
     "glideslope_deg": 3.0,
     "initial_altitude_agl_ft": 600
   },
@@ -74,7 +74,7 @@
   },
   "wind": {
     "base_direction_deg": 250,
-    "base_speed_kts": 15,
+    "base_speed_kts": 5,
     "crosswind_component_kts": 12,
     "shear": {
       "enabled": true,
